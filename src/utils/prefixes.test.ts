@@ -1,53 +1,58 @@
-import { getPrefixes } from './prefixes' // Adjust the import path if needed
+import { getPrefixes } from './prefixes'
 
 describe('getPrefixes', () => {
-  it('should return correct prefixes up to length n', () => {
-    const words = new Set(['apple', 'banana', 'cherry'])
-    const n = 3
+  it('should return correct prefixes within the specified length range', () => {
+    const words = new Set(['apple', 'banana', 'grape', 'grapefruit'])
+    const minLength = 2
+    const maxLength = 4
 
-    const result = getPrefixes(words, n)
+    const result = getPrefixes(words, minLength, maxLength)
 
-    expect(result).toEqual(
-      new Set(['a', 'ap', 'app', 'b', 'ba', 'ban', 'c', 'ch', 'che'])
-    )
+    // The expected prefixes (from the example words with minLength 2 and maxLength 4)
+    const expected = new Set([
+      'ap',
+      'app',
+      'appl',
+      'ba',
+      'bana',
+      'ban',
+      'gra',
+      'grap',
+      'gr',
+      'gra',
+      'grap',
+    ])
+
+    expect(result).toEqual(expected)
   })
 
-  it('should handle an empty Set', () => {
+  it('should return an empty set for an empty input set', () => {
     const words = new Set<string>()
-    const n = 3
+    const minLength = 2
+    const maxLength = 4
 
-    const result = getPrefixes(words, n)
+    const result = getPrefixes(words, minLength, maxLength)
 
     expect(result).toEqual(new Set())
   })
 
-  it('should handle a Set with one word', () => {
-    const words = new Set(['dog'])
-    const n = 2
+  it('should handle cases where no prefixes are within the length range', () => {
+    const words = new Set(['a', 'b', 'c'])
+    const minLength = 3
+    const maxLength = 5
 
-    const result = getPrefixes(words, n)
+    const result = getPrefixes(words, minLength, maxLength)
 
-    expect(result).toEqual(new Set(['d', 'do']))
+    expect(result).toEqual(new Set())
   })
 
-  it('should handle a Set with words shorter than n', () => {
-    const words = new Set(['cat', 'dog'])
-    const n = 5
+  it('should return prefixes for single-word input', () => {
+    const words = new Set(['test'])
+    const minLength = 2
+    const maxLength = 3
 
-    const result = getPrefixes(words, n)
+    const result = getPrefixes(words, minLength, maxLength)
 
-    expect(result).toEqual(new Set(['c', 'ca', 'cat', 'd', 'do', 'dog']))
-  })
-
-  it('should not return duplicates', () => {
-    const words = new Set(['cat', 'catalog', 'dog'])
-    const n = 4
-
-    const result = getPrefixes(words, n)
-
-    // Ensure there are no duplicates and correct prefixes are returned
-    expect(result).toEqual(
-      new Set(['c', 'ca', 'cat', 'cat', 'cata', 'd', 'do', 'dog'])
-    )
+    expect(result).toEqual(new Set(['te', 'tes']))
   })
 })

@@ -1,10 +1,38 @@
 // import the list of words text file at ../data/words.txt
 
+import { sleep } from '@/utils/controlFlow'
+import { getPrefixes } from '@/utils/prefixes'
 import fs from 'fs'
 import path from 'path'
 
+import yargs from 'yargs'
+import { hideBin } from 'yargs/helpers'
+
 const MIN_WORD_LENGTH = 4
 const MAX_WORD_LENGTH = 8
+
+const MIN_PREFIX_LENGTH = 1
+const MAX_PREFIX_LENGTH = 3
+
+const argv = await yargs(hideBin(process.argv))
+  .help('h') // Enable help via -h
+  .alias('h', '?') // Alias -? to -h
+  .alias('h', 'help') // Ensure both -h and --help work
+  .options({
+    sleepMilliseconds: {
+      alias: 's',
+      description: 'Sleep time in milliseconds',
+      type: 'number',
+      default: 500,
+    },
+    verbose: {
+      alias: 'v',
+      description: 'Enable verbose output',
+      type: 'boolean',
+      default: false,
+    },
+  })
+  .parseAsync()
 
 // Define the relative path to the text file
 const filePath = path.join(__dirname, '../data/words.txt')
@@ -22,6 +50,13 @@ const dictionary = new Set(
 
 // Output the words
 console.log('Dictionary Size:', Array.from(dictionary).length)
+
+const prefixes = getPrefixes(dictionary, MIN_PREFIX_LENGTH, MAX_PREFIX_LENGTH)
+console.log('Prefixes Size:', Array.from(prefixes).length)
+
+// Print the list of prefixes to a file prefixes.txt
+const prefixesFilePath = path.join(__dirname, '../data/prefixes.txt')
+fs.writeFileSync(prefixesFilePath, Array.from(prefixes).join('\n'))
 
 const array2D: string[][] = [
   ['T', 'A', 'L', 'D', 'C', 'I'],
@@ -53,13 +88,32 @@ function findWords(grid: string[][], dictionary: Set<string>): string[] {
   ]
 
   // Backtracking function to explore words
-  function backtrack(x: number, y: number, currentWord: string) {
+  async function backtrack(
+    x: number,
+    y: number,
+    currentWord: string,
+    breadcrumbs: number[][]
+  ) {
+    await sleep(argv.sleepMilliseconds)
+    if (argv.verbose)
+      console.log(`${x}, ${y}: BACKTRACKING CHECK CURRENT WORD: `, currentWord)
+    // if (currentWord.length < MIN_WORD_LENGTH) return
     if (currentWord.length > MAX_WORD_LENGTH) return
-    console.log('BACKTRACKING CURRENT WORD: ', currentWord)
+
+    // Get the first 3 letters of the current word
+    const prefix = currentWord.slice(0, MAX_PREFIX_LENGTH)
+    if (!prefixes.has(prefix)) return
+
+    if (argv.verbose)
+      console.log(
+        `${x}, ${y}: BACKTRACKING CURRENT WORD APPROVED: `,
+        currentWord
+      )
+    await sleep(argv.sleepMilliseconds)
 
     // Check if the current word is in the dictionary
     if (currentWord.length >= MIN_WORD_LENGTH && dictionary.has(currentWord)) {
-      console.log('FOUND WORD: ', currentWord)
+      console.log('FOUND WORD: ', currentWord, breadcrumbs)
       foundWords.add(currentWord)
     }
 
@@ -68,10 +122,18 @@ function findWords(grid: string[][], dictionary: Set<string>): string[] {
       const nx = x + dx
       const ny = y + dy
 
+      // If [nx, ny] exists in breadcrumbs, skip
+      if (breadcrumbs.some(([bx, by]) => bx === nx && by === ny)) continue
+
       // Check bounds and if the cell is already visited
       if (nx >= 0 && ny >= 0 && nx < rows && ny < cols && !visited[nx][ny]) {
         visited[nx][ny] = true
-        backtrack(nx, ny, currentWord + grid[nx][ny])
+        await backtrack(
+          nx,
+          ny,
+          currentWord + grid[nx][ny].toLocaleLowerCase(),
+          [...breadcrumbs, [nx, ny]]
+        )
         visited[nx][ny] = false // Backtrack
       }
     }
@@ -80,8 +142,10 @@ function findWords(grid: string[][], dictionary: Set<string>): string[] {
   // Start backtracking from every cell
   for (let i = 0; i < rows; i++) {
     for (let j = 0; j < cols; j++) {
+      console.log('STARTING BACKTRACKING FROM: ', i, j)
+
       visited[i][j] = true
-      backtrack(i, j, grid[i][j])
+      backtrack(i, j, grid[i][j].toLocaleLowerCase(), [[i, j]])
       visited[i][j] = false
     }
   }
