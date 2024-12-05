@@ -10,10 +10,12 @@ import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 
 const MIN_WORD_LENGTH = 4
-const MAX_WORD_LENGTH = 8
+const MAX_WORD_LENGTH = 7
 
 const MIN_PREFIX_LENGTH = 1
 const MAX_PREFIX_LENGTH = 3
+
+const counter = { strings_checked: 0 }
 
 const argv = await yargs(hideBin(process.argv))
   .help('h') // Enable help via -h
@@ -98,6 +100,27 @@ const usedCells = new Set<string>([
   JSON.stringify([5, 0]), // U
   JSON.stringify([6, 0]), // T
   JSON.stringify([7, 0]), // E
+
+  JSON.stringify([3, 1]), // T
+  JSON.stringify([2, 1]), // I
+  JSON.stringify([2, 0]), // L
+  JSON.stringify([3, 0]), // D
+  JSON.stringify([4, 0]), // E
+
+  JSON.stringify([1, 1]), // U
+  JSON.stringify([1, 2]), // M
+  JSON.stringify([0, 2]), // L
+  JSON.stringify([0, 1]), // A
+  JSON.stringify([1, 0]), // U
+  JSON.stringify([0, 0]), // T
+
+  JSON.stringify([4, 5]), // C
+  JSON.stringify([5, 5]), // E
+  JSON.stringify([5, 4]), // D
+  JSON.stringify([6, 4]), // I
+  JSON.stringify([6, 5]), // L
+  JSON.stringify([7, 5]), // L
+  JSON.stringify([7, 4]), // A
 ])
 
 async function findWords(
@@ -128,7 +151,15 @@ async function findWords(
     currentWord: string,
     breadcrumbs: number[][]
   ) {
-    await sleep(argv.sleepMilliseconds)
+    counter.strings_checked += 1
+
+    // // If counter.strings_checked % 1000 === 0, print a '.' without newline
+    // if (counter.strings_checked % 1000 === 0) process.stdout.write('.')
+
+    // // If counter.strings_checked % 10000 === 0, print a newline
+    // if (counter.strings_checked % 10000 === 0) process.stdout.write('\n')
+
+    if (argv.sleepMilliseconds) await sleep(argv.sleepMilliseconds)
     if (argv.debug)
       console.log(`${x}, ${y}: BACKTRACKING CHECK CURRENT WORD: `, currentWord)
     // if (currentWord.length < MIN_WORD_LENGTH) return
@@ -147,9 +178,9 @@ async function findWords(
       dictionary.has(currentWord) &&
       !foundWords.has(currentWord)
     ) {
-      console.log('FOUND WORD: ', currentWord, breadcrumbs)
+      console.log('FOUND WORD: ', currentWord, breadcrumbs, counter)
       foundWords.add(currentWord)
-      await sleep(argv.foundPause)
+      if (argv.foundPause) await sleep(argv.foundPause)
     }
 
     // Explore all 8 directions
@@ -180,6 +211,8 @@ async function findWords(
   // Start backtracking from every cell
   for (let i = 0; i < rows; i++) {
     for (let j = 0; j < cols; j++) {
+      if (isCellUsed(usedCells, i, j)) continue
+
       console.log('STARTING BACKTRACKING FROM: ', i, j)
 
       visited[i][j] = true
