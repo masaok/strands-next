@@ -1,5 +1,6 @@
 // import the list of words text file at ../data/words.txt
 
+import { isCellUsed } from '@/utils/cells'
 import { sleep } from '@/utils/controlFlow'
 import { getPrefixes } from '@/utils/prefixes'
 import fs from 'fs'
@@ -25,9 +26,21 @@ const argv = await yargs(hideBin(process.argv))
       type: 'number',
       default: 500,
     },
+    foundPause: {
+      alias: 'f',
+      description: 'Sleep ms when word found',
+      type: 'number',
+      default: 500,
+    },
     verbose: {
       alias: 'v',
       description: 'Enable verbose output',
+      type: 'boolean',
+      default: false,
+    },
+    debug: {
+      alias: 'd',
+      description: 'Enable debug output',
       type: 'boolean',
       default: false,
     },
@@ -44,9 +57,13 @@ const fileContents = fs.readFileSync(filePath, 'utf-8')
 const dictionary = new Set(
   fileContents
     .split('\n')
-    .map(word => word.trim())
+    .map(word => word.trim().toLocaleLowerCase())
     .filter(Boolean)
 )
+
+// Dump the dictionary to a file dictionary.txt
+const dictionaryFilePath = path.join(__dirname, '../data/dictionary.txt')
+fs.writeFileSync(dictionaryFilePath, Array.from(dictionary).join('\n'))
 
 // Output the words
 console.log('Dictionary Size:', Array.from(dictionary).length)
@@ -69,7 +86,24 @@ const array2D: string[][] = [
   ['E', 'S', 'E', 'V', 'A', 'L'],
 ]
 
-function findWords(grid: string[][], dictionary: Set<string>): string[] {
+const usedCells = new Set<string>([
+  JSON.stringify([4, 3]), // G
+  JSON.stringify([5, 3]), // R
+  JSON.stringify([6, 3]), // A
+  JSON.stringify([7, 3]), // V
+  JSON.stringify([7, 2]), // E
+
+  JSON.stringify([4, 1]), // A
+  JSON.stringify([5, 1]), // C
+  JSON.stringify([5, 0]), // U
+  JSON.stringify([6, 0]), // T
+  JSON.stringify([7, 0]), // E
+])
+
+async function findWords(
+  grid: string[][],
+  dictionary: Set<string>
+): Promise<string[]> {
   const rows = grid.length
   const cols = grid[0].length
   const visited = Array.from({ length: rows }, () => Array(cols).fill(false))
@@ -95,7 +129,7 @@ function findWords(grid: string[][], dictionary: Set<string>): string[] {
     breadcrumbs: number[][]
   ) {
     await sleep(argv.sleepMilliseconds)
-    if (argv.verbose)
+    if (argv.debug)
       console.log(`${x}, ${y}: BACKTRACKING CHECK CURRENT WORD: `, currentWord)
     // if (currentWord.length < MIN_WORD_LENGTH) return
     if (currentWord.length > MAX_WORD_LENGTH) return
@@ -105,16 +139,17 @@ function findWords(grid: string[][], dictionary: Set<string>): string[] {
     if (!prefixes.has(prefix)) return
 
     if (argv.verbose)
-      console.log(
-        `${x}, ${y}: BACKTRACKING CURRENT WORD APPROVED: `,
-        currentWord
-      )
-    await sleep(argv.sleepMilliseconds)
+      console.log(`${x}, ${y}: BACKTRACKING ALLOWED: `, currentWord)
 
     // Check if the current word is in the dictionary
-    if (currentWord.length >= MIN_WORD_LENGTH && dictionary.has(currentWord)) {
+    if (
+      currentWord.length >= MIN_WORD_LENGTH &&
+      dictionary.has(currentWord) &&
+      !foundWords.has(currentWord)
+    ) {
       console.log('FOUND WORD: ', currentWord, breadcrumbs)
       foundWords.add(currentWord)
+      await sleep(argv.foundPause)
     }
 
     // Explore all 8 directions
@@ -124,6 +159,9 @@ function findWords(grid: string[][], dictionary: Set<string>): string[] {
 
       // If [nx, ny] exists in breadcrumbs, skip
       if (breadcrumbs.some(([bx, by]) => bx === nx && by === ny)) continue
+
+      // Check if [nx, ny] is already used
+      if (isCellUsed(usedCells, nx, ny)) continue
 
       // Check bounds and if the cell is already visited
       if (nx >= 0 && ny >= 0 && nx < rows && ny < cols && !visited[nx][ny]) {
@@ -145,7 +183,7 @@ function findWords(grid: string[][], dictionary: Set<string>): string[] {
       console.log('STARTING BACKTRACKING FROM: ', i, j)
 
       visited[i][j] = true
-      backtrack(i, j, grid[i][j].toLocaleLowerCase(), [[i, j]])
+      await backtrack(i, j, grid[i][j].toLocaleLowerCase(), [[i, j]])
       visited[i][j] = false
     }
   }
@@ -153,5 +191,5 @@ function findWords(grid: string[][], dictionary: Set<string>): string[] {
   return Array.from(foundWords)
 }
 
-const words = findWords(array2D, dictionary)
+const words = await findWords(array2D, dictionary)
 console.log('Found Words:', words)
